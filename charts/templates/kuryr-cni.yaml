@@ -1,0 +1,139 @@
+{{- if .Values.cni.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ template "kuryr.fullname" . }}-cni
+  namespace: kube-system
+  labels:
+    {{- include "kuryr.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kuryr-cni
+spec:
+  selector:
+    matchLabels:
+      {{- include "kuryr.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: kuryr-cni
+  template:
+    metadata:
+      labels:
+        {{- include "kuryr.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: kuryr-cni
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ template "kuryr.cni.serviceAccountName" . }}
+      hostNetwork: true
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: {{ .Chart.Name }}-cni
+          image: {{ .Values.cni.image.repository }}:{{ .Values.cni.image.tag | default .Chart.AppVersion }}
+        {{- if .Values.cni.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.cni.image.pullPolicy }}
+        {{- end }}
+          command: [ "cni_ds_init" ]
+          env:
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KURYR_CNI_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KUBE_SERVICE_CIDR
+              value: {{ .Values.cni.kubeServiceCIDR }}
+          securityContext:
+            privileged: true
+        {{- if .Values.cni.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: 8090
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.cni.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.cni.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.cni.livenessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.cni.livenessProbe.successThreshold }}
+            failureThreshold: {{ .Values.cni.livenessProbe.failureThreshold }}
+        {{- end }}
+        {{- if .Values.cni.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8090
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.cni.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.cni.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.cni.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.cni.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.cni.readinessProbe.failureThreshold }}
+        {{- end }}
+          volumeMounts:
+            - name: bin
+              mountPath: /opt/cni/bin
+            - name: net-conf
+              mountPath: /etc/cni/net.d
+            - name: config-volume
+              mountPath: /etc/kuryr
+            - name: proc
+              mountPath: /host_proc
+            - name: var-pci
+              mountPath: /var/pci_address
+        {{- with .Values.cni.resources }}
+          resources:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- if .Values.cloudRouteManager.enabled}}}
+        - name: cloud-route-manager
+          image: {{ .Values.cloudRouteManager.image.repository }}:{{ .Values.cloudRouteManager.image.tag | default .Chart.AppVersion }}
+         {{- if .Values.cloudRouteManager.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.cloudRouteManager.image.pullPolicy }}
+         {{- end }}
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          volumeMounts:
+            - mountPath: /etc
+              name: cni-config
+        {{- end}}
+      nodeSelector:
+        "kubernetes.io/os": linux
+        {{- with .Values.cni.nodeSelector }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.cni.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+      - operator: Exists
+      {{- with .Values.cni.tolerations }}
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      volumes:
+        - name: bin
+          hostPath:
+           path: /opt/cni/bin
+        - name: net-conf
+          hostPath:
+           path: /etc/cni/net.d
+        - name: config-volume
+          configMap:
+            name: {{ include  "kuryr.configMapName" . }}-config
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: var-pci
+          hostPath:
+            path: /var/pci_address
+        - name: cni-config
+          hostPath:
+            path: /etc/cni/net.d
+{{- end }}

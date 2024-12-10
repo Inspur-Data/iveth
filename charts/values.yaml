@@ -1,0 +1,165 @@
+# Default values for kuryr.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# To configure kuryr, you must specify ONE of the following two
+# options.
+
+# existingConfigMap specifies the name of an externally-defined
+# ConfigMap to use as the configuration. Helm will not manage the
+# contents of this ConfigMap, it is your responsibility to create it.
+existingConfigMap: ""
+
+# configInline specifies Kuryr's configuration directly, in yaml
+# format. When configInline is used, Helm manages kuryr's
+# configuration ConfigMap as part of the release, and
+# existingConfigMap is ignored.
+#
+#configInline: {}
+
+rbac:
+  # create specifies whether to install and use RBAC rules.
+  create: true
+
+# create the kuryr-controller deployment
+controller:
+  enabled: true
+  #default the kuryr-controller's replices is 1
+  autoscaling:
+    enabled:
+    replicaCount:
+  image:
+    repository: quay.io/kuryr/controller
+    tag:
+    pullPolicy:
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use. If not set and create is
+    # true, a name is generated using the fullname template
+    name: ""
+    annotations: { }
+
+  resources: { }
+  # limits:
+  # cpu: 100m
+  # memory: 100Mi
+  nodeSelector: { }
+  tolerations: [ ]
+  priorityClassName: ""
+  affinity: { }
+  ## Selects which runtime class will be used by the pod.
+  # runtimeClassName:
+  podAnnotations: { }
+  livenessProbe:
+    enabled: true
+    failureThreshold: 3
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 5
+  readinessProbe:
+    enabled: true
+    failureThreshold: 3
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 5
+  volumeMounts: [ ]
+  volumes: [ ]
+
+# cni contains configuration specific to the Kuryr CNI
+# daemonset.
+cni:
+  enabled: true
+  image:
+    repository: quay.io/kuryr/cni
+    tag:
+    pullPolicy:
+  serviceAccount:
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use. If not set and create is
+    # true, a name is generated using the fullname template
+    name: ""
+    annotations: { }
+
+  resources: { }
+    # limits:
+  # cpu: 100m
+  # memory: 100Mi
+  nodeSelector: { }
+  tolerations: [ ]
+  priorityClassName: ""
+  affinity: { }
+  ## Selects which runtime class will be used by the pod.
+  # runtimeClassName:
+  podAnnotations: { }
+  # k8s cluster service CIDR, For example "ipv4_service_cidr,ipv6_service_cidr"
+  kubeServiceCIDR: ""
+  livenessProbe:
+    enabled: true
+    failureThreshold: 3
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  readinessProbe:
+    enabled: true
+    failureThreshold: 3
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 10
+
+cloudRouteManager:
+  enabled: true
+  image:
+    repository:
+    tag:
+    pullPolicy:
+# kuryr-config. It is a ini config file.
+config:
+  # The kuryr-controller log level,bool, default is debug = true.
+  debug:
+  # The kubernetes apiserver address. default is 127.0.0.1:6443
+  kubernetes:
+    k8sApiRoot:
+  # The neutron auth config
+  neutron:
+    # default is "TmytcJ9S"
+    userName:
+    # default is "Inspur1!"
+    password:
+    # must give a value when use the authURL.
+    # format is: https://100:2:216:244:443/auth/realms/master/protocol/openid-connect/
+    authURL:
+    # default is "iampassword"
+    authType:
+    # default is "password"
+    grantType:
+    # default is "admin-cli"
+    clientID:
+    # default is "True"
+    insecure:
+    # default is "2"
+    networkApiVersion:
+    # format is http://100:2:216:244:39696/v2.0/. must give a value when use the networkEndpoint.
+    networkEndpoint:
+  neutronDefaults:
+    # this value is servicesubnetID in neutron. must give a value.
+    serviceSubnet:
+    podSecurityGroups:
+    # this value is podsubnetID in neutron. must give a value.
+    podSubnetId:
+    # the system VDC ID in neutron. must give a value.
+    project:
+  podVifNested:
+    # this value is workerNodesSubnets in neutron. the vaule is equal to podSubnetId.
+    workerNodesSubnets:
+  binding:
+    linkIface:
